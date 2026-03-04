@@ -1,0 +1,336 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_sharepointonline": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "shelley_sharedsharepointonline_cb3df"
+        },
+        "api": {
+          "name": "shared_sharepointonline"
+        }
+      },
+      "shared_teams": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "shelley_sharedteams_9f8b7"
+        },
+        "api": {
+          "name": "shared_teams"
+        }
+      },
+      "shared_office365": {
+        "runtimeSource": "embedded",
+        "connection": {
+          "connectionReferenceLogicalName": "shelley_sharedoffice365_7a188"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "undefined",
+      "parameters": {
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        },
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        }
+      },
+      "triggers": {
+        "Recurrence": {
+          "recurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "timeZone": "Taipei Standard Time",
+            "startTime": "2026-02-27T02:00:00Z",
+            "schedule": {
+              "hours": [
+                "17",
+                "18"
+              ]
+            }
+          },
+          "evaluatedRecurrence": {
+            "frequency": "Day",
+            "interval": 1,
+            "timeZone": "Taipei Standard Time",
+            "startTime": "2026-02-27T02:00:00Z",
+            "schedule": {
+              "hours": [
+                "17",
+                "18"
+              ]
+            }
+          },
+          "metadata": {
+            "operationMetadataId": "d29cb4e2-42ee-4d29-91a7-0902d0d3d87d"
+          },
+          "type": "Recurrence"
+        }
+      },
+      "actions": {
+        "Now_TW-HH": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "8d8be960-12b9-4083-8c75-9c865413d1e6"
+          },
+          "type": "Compose",
+          "inputs": "@formatDateTime(convertTimeZone(utcNow(),'UTC','Taipei Standard Time'),'HH')"
+        },
+        "Today_TW": {
+          "runAfter": {
+            "Now_TW-HH": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "aa163adc-2f83-4bb9-a298-d65a4542faed"
+          },
+          "type": "Compose",
+          "inputs": "@convertTimeZone(utcNow(),'UTC','Taipei Standard Time','yyyy-MM-dd')"
+        },
+        "Form_Link": {
+          "runAfter": {
+            "Today_TW": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "ad3bfcfb-a711-49dc-9463-8657e26e20ed"
+          },
+          "type": "Compose",
+          "inputs": "https://forms.office.com/Pages/ResponsePage.aspx?id=-3seVh_JD0qjC2sqO3c5U5QgQIdTvq5Hktbi0EX7vOFUQkIyOTVaSkw1Wk5HRUZBMjczMk1GREY5Sy4u"
+        },
+        "Get_items": {
+          "runAfter": {
+            "Form_Link": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "48b46eac-af29-409c-a9d0-d3a453d0f203"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "parameters": {
+              "dataset": "https://kscthinktank.sharepoint.com/sites/DemoSite",
+              "table": "704d2435-2da8-48de-af88-eb600d1367c0",
+              "$filter": "DueDate eq '@{outputs('Today_TW')}' and CompleteTime eq null"
+            },
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+              "connectionName": "shared_sharepointonline",
+              "operationId": "GetItems"
+            },
+            "authentication": "@parameters('$authentication')"
+          }
+        },
+        "Condition-HH_17": {
+          "actions": {
+            "For_each_1": {
+              "foreach": "@outputs('Get_items')?['body/value']",
+              "actions": {
+                "Post_message_in_a_chat_or_channel": {
+                  "metadata": {
+                    "operationMetadataId": "c0bc0667-30a2-4308-b698-50e256931c0d"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "poster": "Flow bot",
+                      "location": "Channel",
+                      "body/recipient/groupId": "9460cb50-fd38-49e5-9a55-c9d9d78fa2c1",
+                      "body/recipient/channelId": "19:W2mAc7znCeX-_h9jxtYmCTbPn46qHpoDGov_YPrvvB81@thread.tacv2",
+                      "body/messageBody": "<p class=\"editor-paragraph\">@{items('For_each_1')?['StageCode/Value']}</p><br><p class=\"editor-paragraph\">@{items('For_each_1')?['NewbieName/DisplayName']}</p><br><p class=\"editor-paragraph\">@{outputs('Form_Link')}</p>"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+                      "connectionName": "shared_teams",
+                      "operationId": "PostMessageToConversation"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Updat-First_Notice": {
+                  "runAfter": {
+                    "Email_-_First_reminder": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "99ece872-233f-484c-97b8-414e83785b4a"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "dataset": "https://kscthinktank.sharepoint.com/sites/DemoSite",
+                      "table": "704d2435-2da8-48de-af88-eb600d1367c0",
+                      "id": "@items('For_each_1')?['ID']",
+                      "item/FirstReminderSentTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm')"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                      "connectionName": "shared_sharepointonline",
+                      "operationId": "PatchItem"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                },
+                "Email_-_First_reminder": {
+                  "runAfter": {
+                    "Post_message_in_a_chat_or_channel": [
+                      "Succeeded"
+                    ]
+                  },
+                  "metadata": {
+                    "operationMetadataId": "77e452ce-401b-4a26-918c-49f4b2e017b2"
+                  },
+                  "type": "OpenApiConnection",
+                  "inputs": {
+                    "parameters": {
+                      "emailMessage/To": "@items('For_each_1')?['NewbieName/Email']",
+                      "emailMessage/Subject": "[提醒] 請更新你的新人試用期 Loop @{items('For_each_1')?['StageCode/Value']}",
+                      "emailMessage/Body": "<p class=\"editor-paragraph\">Hi @{items('For_each_1')?['NewbieName/DisplayName']},</p><br><p class=\"editor-paragraph\">恭禧你完成了一個階段任務，請在今天下班前更新 @{items('For_each_1')?['StageCode/Value']} 的 Loop 內容，並於完成後點選此連結 @{outputs('Form_Link')}，並選擇 @{items('For_each_1')?['StageCode/Value']} 後點選送出即可。</p><br><p class=\"editor-paragraph\">謝謝</p><br><p class=\"editor-paragraph\">**此為系統自動信件，請勿直接回覆</p>",
+                      "emailMessage/Importance": "Normal"
+                    },
+                    "host": {
+                      "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                      "connectionName": "shared_office365",
+                      "operationId": "SendEmailV2"
+                    },
+                    "authentication": "@parameters('$authentication')"
+                  }
+                }
+              },
+              "metadata": {
+                "operationMetadataId": "6a5b0b7a-a8b0-49db-9a57-fffd84b008b8"
+              },
+              "type": "Foreach"
+            }
+          },
+          "runAfter": {
+            "Get_items": [
+              "Succeeded"
+            ]
+          },
+          "else": {
+            "actions": {
+              "Condition-HH18": {
+                "actions": {
+                  "For_each": {
+                    "foreach": "@outputs('Get_items')?['body/value']",
+                    "actions": {
+                      "Post_message_in_a_chat_or_channel_1": {
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "poster": "Flow bot",
+                            "location": "Channel",
+                            "body/recipient/groupId": "9460cb50-fd38-49e5-9a55-c9d9d78fa2c1",
+                            "body/recipient/channelId": "19:W2mAc7znCeX-_h9jxtYmCTbPn46qHpoDGov_YPrvvB81@thread.tacv2",
+                            "body/messageBody": "<p class=\"editor-paragraph\">@{items('For_each')?['NewbieName/Email']}</p><br><p class=\"editor-paragraph\">@{items('For_each')?['NewbieName/DisplayName']}</p><br><p class=\"editor-paragraph\">@{items('For_each')?['StageCode/Value']}</p>"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+                            "connectionName": "shared_teams",
+                            "operationId": "PostMessageToConversation"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      },
+                      "Email_-_Final": {
+                        "runAfter": {
+                          "Post_message_in_a_chat_or_channel_1": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "emailMessage/To": "@items('For_each')?['NewbieName/Email']",
+                            "emailMessage/Subject": "[最後提醒] 記得更新 Loop 並回覆問卷 @{items('For_each')?['StageCode/Value']}",
+                            "emailMessage/Body": "<p class=\"editor-paragraph\">Hi @{items('For_each')?['StageCode/Value']},</p><br><p class=\"editor-paragraph\">目前還沒有收到你的更新回覆呦，請記得在更新 Loop 之後，回覆問卷 <a href=\"https://\" class=\"editor-link\">@{outputs('Form_Link')} </a>@{items('For_each')?['StageCode/Value']}完成更新。</p><br><p class=\"editor-paragraph\">若已經完成，請忽略此封通知。</p><br><p class=\"editor-paragraph\">辛苦了一週，週末請好好充電🔋</p><br><p class=\"editor-paragraph\">**此為系統自動通知，請勿直接回覆</p>",
+                            "emailMessage/Importance": "Normal"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                            "connectionName": "shared_office365",
+                            "operationId": "SendEmailV2"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      },
+                      "Update-Final_Notice": {
+                        "runAfter": {
+                          "Email_-_Final": [
+                            "Succeeded"
+                          ]
+                        },
+                        "type": "OpenApiConnection",
+                        "inputs": {
+                          "parameters": {
+                            "dataset": "https://kscthinktank.sharepoint.com/sites/DemoSite",
+                            "table": "704d2435-2da8-48de-af88-eb600d1367c0",
+                            "id": "@items('For_each')?['ID']",
+                            "item/IsNewbie_x003f_/Value": "No",
+                            "item/FinalReminderSentTime": "@formatDateTime(utcNow(),'yyyy-MM-ddTHH:mm')"
+                          },
+                          "host": {
+                            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+                            "connectionName": "shared_sharepointonline",
+                            "operationId": "PatchItem"
+                          },
+                          "authentication": "@parameters('$authentication')"
+                        }
+                      }
+                    },
+                    "type": "Foreach"
+                  }
+                },
+                "else": {
+                  "actions": {}
+                },
+                "expression": {
+                  "and": [
+                    {
+                      "greaterOrEquals": [
+                        "@int(outputs('Now_TW-HH'))",
+                        18
+                      ]
+                    }
+                  ]
+                },
+                "metadata": {
+                  "operationMetadataId": "1f46d1e8-4781-4cc6-be44-8e127773af5c"
+                },
+                "type": "If"
+              }
+            }
+          },
+          "expression": {
+            "and": [
+              {
+                "lessOrEquals": [
+                  "@int(outputs('Now_TW-HH'))",
+                  17
+                ]
+              }
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "ad01e8ee-c46d-4064-a025-ef0baee63926"
+          },
+          "type": "If"
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
